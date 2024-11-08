@@ -9,21 +9,13 @@ type Coin struct {
 }
 
 func NewCoin(title string, price float64) *Coin {
-	coin := &Coin{}
-
-	if title == "" {
-		coin.title = "BTC"
-	} else {
-		coin.title = "ETH"
+	if title != "BTC" && title != "ETH" {
+		title = "BTC"
 	}
 
-	if price == 0 {
-		coin.price = 0.0
-	} else {
-		coin.price = price
+	if price < 0 {
+		price = 0
 	}
 
-	coin.actualAt = time.Now()
-
-	return coin
+	return &Coin{title, price, time.Now()}
 }
