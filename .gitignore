@@ -27,3 +27,9 @@ go.work.sum
 
 # env file
 .env
+
+# image files
+.png
+.jpg
+.jpeg
+.webp
