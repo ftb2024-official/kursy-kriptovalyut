@@ -1,4 +1,4 @@
-package entity
+package entities
 
 import (
 	"testing"
@@ -22,7 +22,7 @@ var newCoinTests = []newCoinTest{
 
 func TestNewCoin(t *testing.T) {
 	for _, test := range newCoinTests {
-		out := NewCoin(test.arg1, test.arg2)
+		out, _ := NewCoin(test.arg1, test.arg2)
 		if out.title != test.res1 || out.price != test.res2 {
 			t.Errorf("got: %v, %v, want: %v, %v", out.title, out.price, test.res1, test.res2)
 		}

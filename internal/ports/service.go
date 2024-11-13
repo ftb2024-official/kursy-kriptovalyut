@@ -2,7 +2,7 @@ package ports
 
 import (
 	"context"
-	"kursy-kriptovalyut/internal/entity"
+	entity "kursy-kriptovalyut/internal/entities"
 )
 
 type Service interface {
@@ -11,3 +11,8 @@ type Service interface {
 	GetMinRates(ctx context.Context, titles []string) ([]entity.Coin, error)
 	GetAvgRates(ctx context.Context, titles []string) ([]entity.Coin, error)
 }
+
+// GetLastRates - для получения актуального курса
+// GetMaxRates - для получения макс.цены крипты за день
+// GetMinRates - для получения мин.цены крипты за день
+// GetAvgRates - для получения ср.цены крипты за день

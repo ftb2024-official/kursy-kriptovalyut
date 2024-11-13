@@ -1,14 +1,13 @@
-package usecases
+package cases
 
 import (
 	"context"
-	"kursy-kriptovalyut/internal/entity"
-	"kursy-kriptovalyut/internal/ports"
+	entity "kursy-kriptovalyut/internal/entities"
 )
 
 type Service struct {
-	provider ports.CryptoProvider
-	storage  ports.Storage
+	provider CryptoProvider
+	storage  Storage
 }
 
 func (s *Service) GetLastRates(ctx context.Context, titles []string) ([]entity.Coin, error) {
@@ -31,6 +30,6 @@ func (s *Service) ActualizeRates(ctx context.Context) error {
 	return nil
 }
 
-func NewService(provider ports.CryptoProvider, storage ports.Storage) *Service {
+func NewService(provider CryptoProvider, storage Storage) *Service {
 	return &Service{provider, storage}
 }

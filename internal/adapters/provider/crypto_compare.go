@@ -2,10 +2,16 @@ package provider
 
 import (
 	"context"
-	"kursy-kriptovalyut/internal/entity"
+	entity "kursy-kriptovalyut/internal/entities"
 )
 
-type CryptoCompare struct{}
+type CryptoCompare struct {
+	apiKey string
+}
+
+func NewCryptoCompare(apiKey string) *CryptoCompare {
+	return &CryptoCompare{apiKey: apiKey}
+}
 
 func (cc *CryptoCompare) GetActualRates(ctx context.Context, titles []string) ([]entity.Coin, error) {
 	return nil, nil

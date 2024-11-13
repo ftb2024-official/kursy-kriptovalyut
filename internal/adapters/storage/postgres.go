@@ -2,10 +2,17 @@ package storage
 
 import (
 	"context"
-	"kursy-kriptovalyut/internal/entity"
+	"database/sql"
+	entity "kursy-kriptovalyut/internal/entities"
 )
 
-type Postgres struct{}
+type Postgres struct {
+	db *sql.DB
+}
+
+func NewPostgres(db *sql.DB) *Postgres {
+	return &Postgres{db: db}
+}
 
 func (p *Postgres) Store(ctx context.Context, coins []entity.Coin) error {
 	return nil
