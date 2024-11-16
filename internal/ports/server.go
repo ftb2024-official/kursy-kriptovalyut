@@ -1,14 +1,12 @@
-package api
+package ports
 
-import (
-	"kursy-kriptovalyut/internal/usecases"
-)
+import "kursy-kriptovalyut/internal/cases"
 
 type Server struct {
-	service *usecases.Service
+	service *cases.Service
 }
 
-func NewServer(service usecases.Service) *Server {
+func NewServer(service cases.Service) *Server {
 	return &Server{&service}
 }
 

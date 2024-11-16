@@ -1,58 +1,44 @@
 package entities
 
 import (
+	"errors"
 	"testing"
-	"time"
 )
 
-type newCoinTest struct {
-	arg1 string
-	arg2 float64
-	res1 string
-	res2 float64
-}
-
-var newCoinTests = []newCoinTest{
-	{"", 0, "BTC", 0},
-	{"BTC", -1, "BTC", 0},
-	{"ETH", 1, "ETH", 1},
-	{"USDT", 2, "BTC", 2},
-	{"smth else", 3, "BTC", 3},
-}
-
 func TestNewCoin(t *testing.T) {
-	for _, test := range newCoinTests {
-		out, _ := NewCoin(test.arg1, test.arg2)
-		if out.title != test.res1 || out.price != test.res2 {
-			t.Errorf("got: %v, %v, want: %v, %v", out.title, out.price, test.res1, test.res2)
-		}
+	// testcase 1: valid input
+	coin, err := NewCoin("BTC", 1000)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if coin.title != "BTC" || coin.price != 1000 {
+		t.Fatalf("unexpected Coin values: %v", coin)
+	}
 
-		// Проверка, что время создания актуально (с небольшим допустимым отклонением)
-		if time.Since(out.actualAt) > time.Second {
-			t.Errorf("actualAt is too old: got %v", out.actualAt)
-		}
+	// testcase 2: empty title
+	_, err = NewCoin("", 1000)
+	if err == nil {
+		t.Fatalf("expected error for empty title, got nil")
+	}
+	if !errors.Is(err, ErrEmptyTitle) {
+		t.Fatalf("expected wrapped error %v, got %v", ErrEmptyTitle, err)
+	}
+
+	// testcase 3: negative price
+	_, err = NewCoin("ETH", -1000)
+	if err == nil {
+		t.Fatalf("expected error for negative price, got nil")
+	}
+	if !errors.Is(err, ErrNegativePrice) {
+		t.Fatalf("expected wrapped error '%v', got '%v'", ErrNegativePrice, err)
+	}
+
+	// testcase 4: zero price
+	_, err = NewCoin("BTC", 0)
+	if err == nil {
+		t.Fatalf("expected error for zero price, got nil")
+	}
+	if !errors.Is(err, ErrZeroPrice) {
+		t.Fatalf("expected wrapped error '%v', got '%v'", ErrZeroPrice, err)
 	}
 }
-
-// for _, test := range []struct {
-// 	arg1 string
-// 	arg2 float64
-// 	res1 string
-// 	res2 float64
-// }{
-// 	{"", 0, "BTC", 0},
-// 	{"BTC", -1, "BTC", 0},
-// 	{"ETH", 1, "ETH", 1},
-// 	{"USDT", 2, "BTC", 2},
-// 	{"smth else", 3, "BTC", 3},
-// } {
-// 	out := NewCoin(test.arg1, test.arg2)
-// 	if out.title != test.res1 || out.price != test.res2 {
-// 		t.Errorf("got: %v, %v, want: %v, %v", out.title, out.price, test.res1, test.res2)
-// 	}
-
-// 	// Проверка, что время создания актуально (с небольшим допустимым отклонением)
-// 	if time.Since(out.actualAt) > time.Second {
-// 		t.Errorf("actualAt is too old: got %v", out.actualAt)
-// 	}
-// }
