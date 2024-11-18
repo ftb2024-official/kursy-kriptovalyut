@@ -19,11 +19,11 @@ type Service struct {
 }
 
 func NewService(provider CryptoProvider, storage Storage) (*Service, error) {
-	if provider == nil || provider == CryptoProvider(nil) {
+	if provider == nil {
 		return nil, fmt.Errorf("%w: %w", ErrSmthWentWrong, ErrNilProvider)
 	}
 
-	if storage == nil || storage == Storage(nil) {
+	if storage == nil {
 		return nil, fmt.Errorf("%w: %w", ErrSmthWentWrong, ErrNilStorage)
 	}
 

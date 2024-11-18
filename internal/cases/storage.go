@@ -5,6 +5,7 @@ import (
 	entity "kursy-kriptovalyut/internal/entities"
 )
 
+//go:generate mockgen -source=./storage.go -destination=./mocks/gen/mock_storage.go
 type Storage interface {
 	Store(ctx context.Context, coins []entity.Coin) error
 	GetCoinsList(ctx context.Context) ([]string, error)
