@@ -57,18 +57,18 @@ func (mr *MockStorageMockRecorder) GetActualCoins(ctx, titles any) *gomock.Call 
 }
 
 // GetAggregateCoins mocks base method.
-func (m *MockStorage) GetAggregateCoins(ctx context.Context, titles []string) ([]entities.Coin, error) {
+func (m *MockStorage) GetAggregateCoins(ctx context.Context, titles []string, aggFuncName string) ([]entities.Coin, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAggregateCoins", ctx, titles)
+	ret := m.ctrl.Call(m, "GetAggregateCoins", ctx, titles, aggFuncName)
 	ret0, _ := ret[0].([]entities.Coin)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetAggregateCoins indicates an expected call of GetAggregateCoins.
-func (mr *MockStorageMockRecorder) GetAggregateCoins(ctx, titles any) *gomock.Call {
+func (mr *MockStorageMockRecorder) GetAggregateCoins(ctx, titles, aggFuncName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAggregateCoins", reflect.TypeOf((*MockStorage)(nil).GetAggregateCoins), ctx, titles)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAggregateCoins", reflect.TypeOf((*MockStorage)(nil).GetAggregateCoins), ctx, titles, aggFuncName)
 }
 
 // GetCoinsList mocks base method.
