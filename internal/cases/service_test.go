@@ -1,11 +1,15 @@
 package cases
 
 import (
-	mock_cases "kursy-kriptovalyut/internal/cases/mocks/gen"
+	"context"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+
+	mock_cases "kursy-kriptovalyut/internal/cases/mocks/gen"
+	"kursy-kriptovalyut/internal/entities"
 )
 
 func TestNewService(t *testing.T) {
@@ -54,6 +58,98 @@ func TestNewService(t *testing.T) {
 			require.NotNil(t, service)
 			require.NotNil(t, service.provider)
 			require.NotNil(t, service.storage)
+		})
+	}
+}
+
+func TestHandleMissingTitles(t *testing.T) {
+	t.Parallel()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.TODO()
+	mockProvider := mock_cases.NewMockCryptoProvider(ctrl)
+	mockStorage := mock_cases.NewMockStorage(ctrl)
+	service, _ := NewService(mockProvider, mockStorage)
+
+	tests := []struct {
+		name          string
+		missingTitles []string
+		wantErr       bool
+		res           []entities.Coin
+		resErr        string
+		mockSetup     func()
+	}{
+		{
+			name:          "successful handling",
+			missingTitles: []string{"BTC"},
+			res: []entities.Coin{
+				{
+					Title: "BTC",
+					Price: 100,
+				},
+			},
+			mockSetup: func() {
+				mockProvider.EXPECT().GetActualRates(ctx, []string{"BTC"}).Return([]entities.Coin{
+					{
+						Title: "BTC",
+						Price: 100,
+					},
+				}, nil)
+
+				mockStorage.EXPECT().Store(ctx, []entities.Coin{
+					{
+						Title: "BTC",
+						Price: 100,
+					},
+				}).Return(nil)
+			},
+		},
+		{
+			name:          "provider failure",
+			missingTitles: []string{"BTC"},
+			wantErr:       true,
+			resErr:        "failed to get coin data from provider",
+			mockSetup: func() {
+				mockProvider.EXPECT().GetActualRates(ctx, []string{"BTC"}).Return(nil, errors.New("provider error"))
+			},
+		},
+		{
+			name:          "storage failure",
+			missingTitles: []string{"BTC"},
+			wantErr:       true,
+			resErr:        "failed to write new coin data to storage",
+			mockSetup: func() {
+				mockProvider.EXPECT().GetActualRates(ctx, []string{"BTC"}).Return([]entities.Coin{
+					{
+						Title: "BTC",
+						Price: 100,
+					},
+				}, nil)
+
+				mockStorage.EXPECT().Store(ctx, []entities.Coin{
+					{
+						Title: "BTC",
+						Price: 100,
+					},
+				}).Return(errors.New("storage error"))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tt.mockSetup()
+			res, err := service.handleMissingTitles(ctx, tt.missingTitles)
+			if tt.wantErr {
+				require.Nil(t, res)
+				require.ErrorContains(t, err, tt.resErr)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tt.res, res)
 		})
 	}
 }
