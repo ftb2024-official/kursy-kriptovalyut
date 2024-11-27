@@ -62,6 +62,93 @@ func TestNewService(t *testing.T) {
 	}
 }
 
+func TestGetLastRates(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	mockProvider := mock_cases.NewMockCryptoProvider(ctrl)
+	mockStorage := mock_cases.NewMockStorage(ctrl)
+	svc, _ := NewService(mockProvider, mockStorage)
+
+	tests := []struct {
+		name            string
+		requestedTitles []string
+		res             []entities.Coin
+		wantErr         bool
+		resErr          string
+		mockSetup       func()
+	}{
+		{
+			name:            "all requested coins in storage",
+			requestedTitles: []string{"BTC"},
+			res:             []entities.Coin{{Title: "BTC", Price: 10}},
+			mockSetup: func() {
+				mockStorage.EXPECT().GetCoinsList(ctx).Return([]string{"BTC"}, nil)
+				mockStorage.EXPECT().GetActualCoins(ctx, []string{"BTC"}).Return([]entities.Coin{{Title: "BTC", Price: 10}}, nil)
+			},
+		},
+		{
+			name:            "all requested coins not in storage",
+			requestedTitles: []string{"BTC"},
+			res:             []entities.Coin{{Title: "BTC", Price: 10}},
+			mockSetup: func() {
+				mockStorage.EXPECT().GetCoinsList(ctx).Return([]string{}, nil)
+				mockProvider.EXPECT().GetActualRates(ctx, []string{"BTC"}).Return([]entities.Coin{{Title: "BTC", Price: 10}}, nil)
+				mockStorage.EXPECT().Store(ctx, []entities.Coin{{Title: "BTC", Price: 10}}).Return(nil)
+			},
+		},
+		{
+			name:            "not all requested coins in storage",
+			requestedTitles: []string{"BTC", "LTC"},
+			res:             []entities.Coin{{Title: "BTC", Price: 10}, {Title: "LTC", Price: 1}},
+			mockSetup: func() {
+				mockStorage.EXPECT().GetCoinsList(ctx).Return([]string{"BTC"}, nil)
+				mockProvider.EXPECT().GetActualRates(ctx, []string{"LTC"}).Return([]entities.Coin{{Title: "LTC", Price: 1}}, nil)
+				mockStorage.EXPECT().Store(ctx, []entities.Coin{{Title: "LTC", Price: 1}}).Return(nil)
+				mockStorage.EXPECT().GetActualCoins(ctx, []string{"BTC"}).Return([]entities.Coin{{Title: "BTC", Price: 10}}, nil)
+			},
+		},
+		// {
+		// 	name:            "GetCoinsList failure",
+		// 	requestedTitles: []string{"BTC"},
+		// 	wantErr:         true,
+		// 	resErr:          "failed to get list of coin titles",
+		// 	mockSetup: func() {
+		// 		mockStorage.EXPECT().GetCoinsList(ctx).Return(nil, errors.New("GetCoinsList error"))
+		// 	},
+		// },
+		// {
+		// 	name:            "GetActualCoins failure",
+		// 	requestedTitles: []string{"BTC"},
+		// 	wantErr:         true,
+		// 	resErr:          "failed to get coin data from storage",
+		// 	mockSetup: func() {
+		// 		mockStorage.EXPECT().GetCoinsList(ctx).Return([]string{"BTC"}, nil)
+		// 		mockStorage.EXPECT().GetActualCoins(ctx, []string{"BTC"}).Return(nil, errors.New("GetActualCoins error"))
+		// 	},
+		// },
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tt.mockSetup()
+
+			res, err := svc.GetLastRates(ctx, tt.requestedTitles)
+			if tt.wantErr {
+				require.Nil(t, res)
+				require.ErrorContains(t, err, tt.resErr)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tt.res, res)
+		})
+	}
+}
+
 func TestHandleMissingTitles(t *testing.T) {
 	t.Parallel()
 	ctrl := gomock.NewController(t)
