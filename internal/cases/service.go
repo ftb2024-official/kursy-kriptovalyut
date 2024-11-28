@@ -2,6 +2,7 @@ package cases
 
 import (
 	"context"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -73,6 +74,11 @@ func (s *Service) GetLastRates(ctx context.Context, requestedCoinTitles []string
 }
 
 func (s *Service) GetAggRates(ctx context.Context, requestedCoinTitles []string, aggFuncName string) ([]entities.Coin, error) {
+	validAggFuncs := map[string]bool{"max": true, "min": true, "avg": true}
+	if !validAggFuncs[strings.ToLower(aggFuncName)] {
+		return nil, errors.Wrap(ErrInvalidParam, "wrong aggregate function name")
+	}
+
 	// получаем список монет, которые уже есть в хранилище
 	existingTitles, err := s.storage.GetCoinsList(ctx)
 	if err != nil {
@@ -93,29 +99,29 @@ func (s *Service) GetAggRates(ctx context.Context, requestedCoinTitles []string,
 
 	// 2-случай: все запрашиваемые монеты отсутствуют в хранилище
 	if len(existingReqTitles) == 0 {
-		// получаем актуальные данные по отсутствующим монетам от провайдера
+		// получаем актуальные данные по отсутствующим монетам от провайдера и сохраняем в хранилище
 		_, err := s.handleMissingTitles(ctx, nonExistingReqTitles)
 		if err != nil {
 			return nil, err
 		}
 
-		return nil, errors.Wrapf(err, "new coins %v added to the storage, but aggregation is unavailable for 5 minutes", nonExistingReqTitles)
+		return nil, errors.Errorf("new coins %v added to the storage, but aggregation is unavailable for 5 minutes", nonExistingReqTitles)
 	}
 
 	// 3-случай: часть монет есть в хранилище, часть отсутствует
-	aggCoins, err := s.storage.GetAggregateCoins(ctx, existingReqTitles, aggFuncName)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get aggregated coin data from storage")
-	}
-
 	// получаем актуальные данные по отсутствующим монетам от провайдера
 	_, err = s.handleMissingTitles(ctx, nonExistingReqTitles)
 	if err != nil {
 		return nil, err
 	}
 
+	aggCoins, err := s.storage.GetAggregateCoins(ctx, existingReqTitles, aggFuncName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get aggregated coin data from storage")
+	}
+
 	// возвращаем частичный результат и ошибку
-	return aggCoins, errors.Wrapf(err, "partial result returned for coins %v; new coins %v added to the storage, but aggregation is unavailable for 5 minutes", existingReqTitles, nonExistingReqTitles)
+	return aggCoins, errors.Errorf("partial result returned for coins %v; new coins %v added to the storage, but aggregation is unavailable for 5 minutes", existingReqTitles, nonExistingReqTitles)
 }
 
 func (s *Service) handleMissingTitles(ctx context.Context, missingTitles []string) ([]entities.Coin, error) {

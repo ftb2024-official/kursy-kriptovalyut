@@ -1,2 +1,3 @@
-hello:
-	echo "Hello, World!"
+cvrg:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out
