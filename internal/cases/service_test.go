@@ -35,14 +35,14 @@ func TestNewService(t *testing.T) {
 			provider: nil,
 			storage:  mock_cases.NewMockStorage(ctrl),
 			wantErr:  true,
-			resErr:   cases.ErrInvalidParam,
+			resErr:   entities.ErrInvalidParam,
 		},
 		{
 			name:     "storage not set",
 			provider: mock_cases.NewMockCryptoProvider(ctrl),
 			storage:  nil,
 			wantErr:  true,
-			resErr:   cases.ErrInvalidParam,
+			resErr:   entities.ErrInvalidParam,
 		},
 	}
 

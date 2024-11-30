@@ -16,11 +16,11 @@ type Service struct {
 
 func NewService(provider CryptoProvider, storage Storage) (*Service, error) {
 	if provider == nil || provider == CryptoProvider(nil) {
-		return nil, errors.Wrap(ErrInvalidParam, "provider not set")
+		return nil, errors.Wrap(entities.ErrInvalidParam, "provider not set")
 	}
 
 	if storage == nil || storage == Storage(nil) {
-		return nil, errors.Wrap(ErrInvalidParam, "storage not set")
+		return nil, errors.Wrap(entities.ErrInvalidParam, "storage not set")
 	}
 
 	return &Service{
@@ -76,7 +76,7 @@ func (s *Service) GetLastRates(ctx context.Context, requestedCoinTitles []string
 func (s *Service) GetAggRates(ctx context.Context, requestedCoinTitles []string, aggFuncName string) ([]entities.Coin, error) {
 	validAggFuncs := map[string]bool{"max": true, "min": true, "avg": true}
 	if !validAggFuncs[strings.ToLower(aggFuncName)] {
-		return nil, errors.Wrap(ErrInvalidParam, "wrong aggregate function name")
+		return nil, errors.Wrap(entities.ErrInvalidParam, "wrong aggregate function name")
 	}
 
 	// получаем список монет, которые уже есть в хранилище

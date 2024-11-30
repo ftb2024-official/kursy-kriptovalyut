@@ -6,4 +6,5 @@ import (
 
 var (
 	ErrInvalidParam = errors.New("invalid parameter")
+	ErrInternal     = errors.New("internal error")
 )
