@@ -74,8 +74,8 @@ func (s *Service) GetLastRates(ctx context.Context, requestedCoinTitles []string
 }
 
 func (s *Service) GetAggRates(ctx context.Context, requestedCoinTitles []string, aggFuncName string) ([]entities.Coin, error) {
-	validAggFuncs := map[string]bool{"max": true, "min": true, "avg": true}
-	if !validAggFuncs[strings.ToLower(aggFuncName)] {
+	validAggFuncs := map[string]bool{"MAX": true, "MIN": true, "AVG": true}
+	if !validAggFuncs[strings.ToUpper(aggFuncName)] {
 		return nil, errors.Wrap(entities.ErrInvalidParam, "wrong aggregate function name")
 	}
 
