@@ -2,19 +2,17 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"time"
 
-	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 
 	"kursy-kriptovalyut/internal/entities"
 )
 
 type Postgres struct {
-	dbPool *pgxpool.Pool
+	db *sql.DB
 }
 
 func NewPostgres(connStr string) (*Postgres, error) {
@@ -22,29 +20,37 @@ func NewPostgres(connStr string) (*Postgres, error) {
 		return nil, errors.Wrap(entities.ErrInvalidParam, "empty connection string")
 	}
 
-	pool, err := pgxpool.New(context.Background(), connStr)
+	db, err := sql.Open("pgx", connStr)
 	if err != nil {
-		return nil, errors.Wrapf(entities.ErrInternal, "failed to create pool: %v", err)
+		return nil, errors.Wrapf(entities.ErrInternal, "failed to connect to DB: %v", err)
 	}
-	defer pool.Close()
 
-	if err := pool.Ping(context.Background()); err != nil {
+	if err = db.Ping(); err != nil {
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to ping DB: %v", err)
 	}
 
-	return &Postgres{dbPool: pool}, nil
+	return &Postgres{db: db}, nil
 }
 
 func (p *Postgres) Store(ctx context.Context, coins []entities.Coin) error {
-	query := "INSERT INTO coins (title, price) VALUES ($1, $2)" // пересмотреть вторую часть VALUES ($1, $2)
+	query := "INSERT INTO coins (title, price) VALUES ($1, $2)"
+	stmt, err := p.db.Prepare(query)
+	if err != nil {
+		return errors.Wrapf(entities.ErrInternal, "failed to prepare query: %v", err)
+	}
+	defer stmt.Close()
 
 	for _, coin := range coins {
-		res, err := p.dbPool.Exec(ctx, query, coin.Title, coin.Price)
+		res, err := stmt.ExecContext(ctx, coin.Title, coin.Price)
 		if err != nil {
 			return errors.Wrapf(entities.ErrInternal, "failed to execute query: %v", err)
 		}
 
-		rows := res.RowsAffected()
+		rows, err := res.RowsAffected()
+		if err != nil {
+			return errors.Wrapf(entities.ErrInternal, "unexpected error: %v", err)
+		}
+
 		if rows != 1 {
 			return errors.Wrapf(entities.ErrInternal, "expected to affect 1 row, affected %v row(s)", rows)
 		}
@@ -55,12 +61,14 @@ func (p *Postgres) Store(ctx context.Context, coins []entities.Coin) error {
 
 func (p *Postgres) GetCoinsList(ctx context.Context) ([]string, error) {
 	query := "SELECT DISTINCT title FROM coins"
-
-	rows, err := p.dbPool.Query(ctx, query)
+	stmt, err := p.db.Prepare(query)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.Wrapf(entities.ErrNotFound, "empty result: %v", err.Error())
-		}
+		return nil, errors.Wrapf(entities.ErrInternal, "failed to prepare query: %v", err)
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.QueryContext(ctx)
+	if err != nil {
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to execute query: %v", err)
 	}
 	defer rows.Close()
@@ -86,15 +94,19 @@ func (p *Postgres) GetCoinsList(ctx context.Context) ([]string, error) {
 }
 
 func (p *Postgres) GetActualCoins(ctx context.Context, titles []string) ([]entities.Coin, error) {
-	currentDate := time.Now().Format("2006-01-02")
-	query := "SELECT title, price FROM coins WHERE title = $1 AND created_at = $2 ORDER BY DESC LIMIT 1"
+	query := "select title, price from coins where title = $1 order by desc limit 1"
+	stmt, err := p.db.Prepare(query)
+	if err != nil {
+		return nil, errors.Wrapf(entities.ErrInternal, "failed to prepare query: %v", err)
+	}
+	defer stmt.Close()
 
 	var coin entities.Coin
 	coins := make([]entities.Coin, 0, len(titles))
 
 	for _, title := range titles {
-		if err := p.dbPool.QueryRow(ctx, query, title, currentDate).Scan(&coin.Title, &coin.Price); err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
+		if err := stmt.QueryRowContext(ctx, title).Scan(&coin.Title, &coin.Price); err != nil {
+			if err == sql.ErrNoRows {
 				continue
 			}
 			return nil, errors.Wrapf(entities.ErrInternal, "failed to copy title/price: %v", err)
@@ -107,15 +119,19 @@ func (p *Postgres) GetActualCoins(ctx context.Context, titles []string) ([]entit
 }
 
 func (p *Postgres) GetAggregateCoins(ctx context.Context, titles []string, aggFuncName string) ([]entities.Coin, error) {
-	currentDate := time.Now().Format("2006-01-02")
-	query := fmt.Sprintf("SELECT title, %v(price) FROM coins WHERE title = $1 AND created_at = $2", aggFuncName)
+	query := fmt.Sprintf("SELECT title, %v(price) FROM coins WHERE title = $1", aggFuncName)
+	stmt, err := p.db.Prepare(query)
+	if err != nil {
+		return nil, errors.Wrapf(entities.ErrInternal, "failed to prepare query: %v", err)
+	}
+	defer stmt.Close()
 
 	var coin entities.Coin
 	coins := make([]entities.Coin, 0, len(titles))
 
 	for _, title := range titles {
-		if err := p.dbPool.QueryRow(ctx, query, title, currentDate).Scan(&coin.Title, &coin.Price); err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
+		if err := stmt.QueryRowContext(ctx, query, title).Scan(&coin.Title, &coin.Price); err != nil {
+			if err == sql.ErrNoRows {
 				continue
 			}
 			return nil, errors.Wrapf(entities.ErrInternal, "failed to copy title/price: %v", err)
@@ -126,3 +142,5 @@ func (p *Postgres) GetAggregateCoins(ctx context.Context, titles []string, aggFu
 
 	return coins, nil
 }
+
+// rows.Err() суть проверки после успешной итерации
