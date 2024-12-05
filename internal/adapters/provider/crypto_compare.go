@@ -38,25 +38,25 @@ const (
 )
 
 func (cc *CryptoCompare) GetActualRates(ctx context.Context, titles []string) ([]entities.Coin, error) {
-	fUrl, err := url.Parse(cc.baseUrl)
+	rawURL, err := url.Parse(cc.baseUrl)
 	if err != nil {
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to parse url: %v", err)
 	}
 
 	// manual raw query
 	// rawQuery := fmt.Sprintf("%s=%s&%s=%s", fromSyms, strings.Join(titles, ","), toSyms, currency)
-	// fUrl.RawQuery = rawQuery
+	// rawURL.RawQuery = rawQuery
 
-	queries := fUrl.Query()
+	queries := rawURL.Query()
 	queries.Add(fromSyms, strings.Join(titles, ","))
 	queries.Add(toSyms, currency)
 
-	fUrl.RawQuery, err = url.QueryUnescape(queries.Encode())
+	rawURL.RawQuery, err = url.QueryUnescape(queries.Encode())
 	if err != nil {
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to encode url: %v", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fUrl.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL.String(), nil)
 	if err != nil {
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to create new request, err: %v", err)
 	}
