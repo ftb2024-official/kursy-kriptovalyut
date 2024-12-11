@@ -7,12 +7,15 @@ import (
 	"github.com/pkg/errors"
 
 	"kursy-kriptovalyut/internal/entities"
+	"kursy-kriptovalyut/pkg/logger"
 )
 
 type Service struct {
 	provider CryptoProvider
 	storage  Storage
 }
+
+var log = logger.GetLogger()
 
 func NewService(provider CryptoProvider, storage Storage) (*Service, error) {
 	if provider == nil || provider == CryptoProvider(nil) {
@@ -33,6 +36,7 @@ func (s *Service) GetLastRates(ctx context.Context, requestedCoinTitles []string
 	// получаем список монет, которые уже есть в хранилище
 	existingTitles, err := s.storage.GetCoinsList(ctx)
 	if err != nil {
+		log.Info("11")
 		return nil, errors.Wrap(err, "failed to get list of coin titles")
 	}
 
@@ -40,8 +44,10 @@ func (s *Service) GetLastRates(ctx context.Context, requestedCoinTitles []string
 
 	// 1-случай: все монеты есть в хранилище
 	if len(nonExistingReqTitles) == 0 {
+		log.Info("12")
 		coins, err := s.storage.GetActualCoins(ctx, requestedCoinTitles)
 		if err != nil {
+			log.Info("13")
 			return nil, errors.Wrap(err, "failed to get coin data from storage")
 		}
 
@@ -50,9 +56,10 @@ func (s *Service) GetLastRates(ctx context.Context, requestedCoinTitles []string
 
 	// 2-случай: все запрашиваемые монеты отсутствуют в хранилище
 	if len(existingReqTitles) == 0 {
-		newCoins, err := s.handleMissingTitles(ctx, nonExistingReqTitles)
+		log.Info("14")
+		newCoins, err := s.handleMissingTitles(ctx, nonExistingReqTitles, "PRICE")
 		if err != nil {
-			// если ошибка от провайдера (nil, err), если от хранилища (newCoins, nil)
+			log.Info("15")
 			return nil, err
 		}
 
@@ -60,13 +67,15 @@ func (s *Service) GetLastRates(ctx context.Context, requestedCoinTitles []string
 	}
 
 	// 3-случай: часть монет есть в хранилище, часть отсутствует
-	newCoins, err := s.handleMissingTitles(ctx, nonExistingReqTitles)
+	newCoins, err := s.handleMissingTitles(ctx, nonExistingReqTitles, "PRICE")
 	if err != nil {
+		log.Info("16")
 		return nil, err
 	}
 
 	coins, err := s.storage.GetActualCoins(ctx, existingReqTitles)
 	if err != nil {
+		log.Info("17")
 		return nil, errors.Wrap(err, "failed to get coin data from storage")
 	}
 
@@ -76,12 +85,14 @@ func (s *Service) GetLastRates(ctx context.Context, requestedCoinTitles []string
 func (s *Service) GetAggRates(ctx context.Context, requestedCoinTitles []string, aggFuncName string) ([]entities.Coin, error) {
 	validAggFuncs := map[string]bool{"MAX": true, "MIN": true, "AVG": true}
 	if !validAggFuncs[strings.ToUpper(aggFuncName)] {
+		log.Info("18")
 		return nil, errors.Wrap(entities.ErrInvalidParam, "wrong aggregate function name")
 	}
 
 	// получаем список монет, которые уже есть в хранилище
 	existingTitles, err := s.storage.GetCoinsList(ctx)
 	if err != nil {
+		log.Info("19")
 		return nil, errors.Wrap(err, "failed to get list of coin titles")
 	}
 
@@ -89,8 +100,10 @@ func (s *Service) GetAggRates(ctx context.Context, requestedCoinTitles []string,
 
 	// 1-случай: все запрашиваемые монеты есть в хранилище
 	if len(nonExistingReqTitles) == 0 {
+		log.Info("20")
 		aggCoins, err := s.storage.GetAggregateCoins(ctx, requestedCoinTitles, aggFuncName)
 		if err != nil {
+			log.Info("21")
 			return nil, errors.Wrap(err, "failed to get aggregated coin data from storage")
 		}
 
@@ -99,34 +112,38 @@ func (s *Service) GetAggRates(ctx context.Context, requestedCoinTitles []string,
 
 	// 2-случай: все запрашиваемые монеты отсутствуют в хранилище
 	if len(existingReqTitles) == 0 {
+		log.Info("22")
 		// получаем актуальные данные по отсутствующим монетам от провайдера и сохраняем в хранилище
-		_, err := s.handleMissingTitles(ctx, nonExistingReqTitles)
+		newAggCoins, err := s.handleMissingTitles(ctx, nonExistingReqTitles, aggFuncName)
 		if err != nil {
+			log.Info("23")
 			return nil, err
 		}
 
-		return nil, errors.Errorf("new coins %v added to the storage, but aggregation is unavailable for 5 minutes", nonExistingReqTitles)
+		return newAggCoins, nil
 	}
 
 	// 3-случай: часть монет есть в хранилище, часть отсутствует
 	// получаем актуальные данные по отсутствующим монетам от провайдера
-	_, err = s.handleMissingTitles(ctx, nonExistingReqTitles)
+	newAggCoins, err := s.handleMissingTitles(ctx, nonExistingReqTitles, aggFuncName)
 	if err != nil {
+		log.Info("24")
 		return nil, err
 	}
 
 	aggCoins, err := s.storage.GetAggregateCoins(ctx, existingReqTitles, aggFuncName)
 	if err != nil {
+		log.Info("25")
 		return nil, errors.Wrap(err, "failed to get aggregated coin data from storage")
 	}
 
 	// возвращаем частичный результат и ошибку
-	return aggCoins, errors.Errorf("partial result returned for coins %v; new coins %v added to the storage, but aggregation is unavailable for 5 minutes", existingReqTitles, nonExistingReqTitles)
+	return append(aggCoins, newAggCoins...), nil
 }
 
-func (s *Service) handleMissingTitles(ctx context.Context, missingTitles []string) ([]entities.Coin, error) {
+func (s *Service) handleMissingTitles(ctx context.Context, missingTitles []string, extraArg string) ([]entities.Coin, error) {
 	// получаем актуальные данные по отсутствующим монетам от провайдера
-	newCoins, err := s.provider.GetActualRates(ctx, missingTitles)
+	newCoins, err := s.provider.GetActualRates(ctx, missingTitles, extraArg)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get coin data from provider")
 	}
@@ -156,5 +173,6 @@ func splitRequestedTitles(requested, existing []string) ([]string, []string) {
 			nonExistingReqTitles = append(nonExistingReqTitles, title)
 		}
 	}
+
 	return existingReqTitles, nonExistingReqTitles
 }

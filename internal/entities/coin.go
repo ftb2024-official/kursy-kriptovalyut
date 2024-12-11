@@ -1,15 +1,12 @@
 package entities
 
 import (
-	"time"
-
 	"github.com/pkg/errors"
 )
 
 type Coin struct {
-	Title    string
-	Price    float64
-	actualAt time.Time
+	Title string
+	Price float64
 }
 
 func NewCoin(title string, price float64) (*Coin, error) {
@@ -25,8 +22,4 @@ func NewCoin(title string, price float64) (*Coin, error) {
 		Title: title,
 		Price: price,
 	}, nil
-}
-
-func (c *Coin) SetTime() {
-	c.actualAt = time.Now()
 }

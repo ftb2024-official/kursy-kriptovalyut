@@ -3,18 +3,20 @@ package storage
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 
 	"kursy-kriptovalyut/internal/entities"
+	"kursy-kriptovalyut/pkg/logger"
 )
 
 type Postgres struct {
 	dbPool *pgxpool.Pool
 }
+
+var log = logger.GetLogger()
 
 func NewPostgres(connStr string) (*Postgres, error) {
 	if connStr == "" {
@@ -25,7 +27,6 @@ func NewPostgres(connStr string) (*Postgres, error) {
 	if err != nil {
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to create pool: %v", err)
 	}
-	defer pool.Close()
 
 	if err := pool.Ping(context.Background()); err != nil {
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to ping DB: %v", err)
@@ -40,11 +41,13 @@ func (p *Postgres) Store(ctx context.Context, coins []entities.Coin) error {
 	for _, coin := range coins {
 		res, err := p.dbPool.Exec(ctx, query, coin.Title, coin.Price)
 		if err != nil {
+			log.Info("33")
 			return errors.Wrapf(entities.ErrInternal, "failed to execute query: %v", err)
 		}
 
 		rows := res.RowsAffected()
 		if rows != 1 {
+			log.Info("34")
 			return errors.Wrapf(entities.ErrInternal, "expected to affect 1 row, affected %v row(s)", rows)
 		}
 	}
@@ -57,7 +60,9 @@ func (p *Postgres) GetCoinsList(ctx context.Context) ([]string, error) {
 
 	rows, err := p.dbPool.Query(ctx, query)
 	if err != nil {
+		log.Info("35")
 		if errors.Is(err, pgx.ErrNoRows) {
+			log.Info("36")
 			return nil, errors.Wrapf(entities.ErrNotFound, "empty result: %v", err.Error())
 		}
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to execute query: %v", err)
@@ -71,6 +76,7 @@ func (p *Postgres) GetCoinsList(ctx context.Context) ([]string, error) {
 
 	for rows.Next() {
 		if err := rows.Scan(&title); err != nil {
+			log.Info("37")
 			return nil, errors.Wrapf(entities.ErrInternal, "failed to copy title: %v", err)
 		}
 
@@ -78,6 +84,7 @@ func (p *Postgres) GetCoinsList(ctx context.Context) ([]string, error) {
 	}
 
 	if err := rows.Err(); err != nil {
+		log.Info("38")
 		return nil, errors.Wrapf(entities.ErrInternal, "unexpected error: %v", err)
 	}
 
@@ -85,15 +92,16 @@ func (p *Postgres) GetCoinsList(ctx context.Context) ([]string, error) {
 }
 
 func (p *Postgres) GetActualCoins(ctx context.Context, titles []string) ([]entities.Coin, error) {
-	currentDate := time.Now().Format("2006-01-02")
-	query := "SELECT title, price FROM coins WHERE title = $1 AND created_at = $2 ORDER BY DESC LIMIT 1"
+	query := "SELECT title, price FROM coins WHERE title = $1 AND created_at = CURRENT_DATE ORDER BY created_at DESC LIMIT 1"
 
 	var coin entities.Coin
 	coins := make([]entities.Coin, 0, len(titles))
 
 	for _, title := range titles {
-		if err := p.dbPool.QueryRow(ctx, query, title, currentDate).Scan(&coin.Title, &coin.Price); err != nil {
+		if err := p.dbPool.QueryRow(ctx, query, title).Scan(&coin.Title, &coin.Price); err != nil {
+			log.Info("39")
 			if errors.Is(err, pgx.ErrNoRows) {
+				log.Info("40")
 				continue
 			}
 			return nil, errors.Wrapf(entities.ErrInternal, "failed to copy title/price: %v", err)
@@ -106,15 +114,16 @@ func (p *Postgres) GetActualCoins(ctx context.Context, titles []string) ([]entit
 }
 
 func (p *Postgres) GetAggregateCoins(ctx context.Context, titles []string, aggFuncName string) ([]entities.Coin, error) {
-	currentDate := time.Now().Format("2006-01-02")
-	query := fmt.Sprintf("SELECT title, %v(price) FROM coins WHERE title = $1 AND created_at = $2", aggFuncName)
+	query := fmt.Sprintf("SELECT title, %v(price) FROM coins WHERE title = $1 AND created_at = CURRENT_DATE GROUP BY title", aggFuncName)
 
 	var coin entities.Coin
 	coins := make([]entities.Coin, 0, len(titles))
 
 	for _, title := range titles {
-		if err := p.dbPool.QueryRow(ctx, query, title, currentDate).Scan(&coin.Title, &coin.Price); err != nil {
+		if err := p.dbPool.QueryRow(ctx, query, title).Scan(&coin.Title, &coin.Price); err != nil {
+			log.Info("42")
 			if errors.Is(err, pgx.ErrNoRows) {
+				log.Info("43")
 				continue
 			}
 			return nil, errors.Wrapf(entities.ErrInternal, "failed to copy title/price: %v", err)

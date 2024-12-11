@@ -42,16 +42,16 @@ func (m *MockCryptoProvider) EXPECT() *MockCryptoProviderMockRecorder {
 }
 
 // GetActualRates mocks base method.
-func (m *MockCryptoProvider) GetActualRates(ctx context.Context, titles []string) ([]entities.Coin, error) {
+func (m *MockCryptoProvider) GetActualRates(ctx context.Context, titles []string, extraArg string) ([]entities.Coin, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetActualRates", ctx, titles)
+	ret := m.ctrl.Call(m, "GetActualRates", ctx, titles, extraArg)
 	ret0, _ := ret[0].([]entities.Coin)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetActualRates indicates an expected call of GetActualRates.
-func (mr *MockCryptoProviderMockRecorder) GetActualRates(ctx, titles any) *gomock.Call {
+func (mr *MockCryptoProviderMockRecorder) GetActualRates(ctx, titles, extraArg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetActualRates", reflect.TypeOf((*MockCryptoProvider)(nil).GetActualRates), ctx, titles)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetActualRates", reflect.TypeOf((*MockCryptoProvider)(nil).GetActualRates), ctx, titles, extraArg)
 }

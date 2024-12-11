@@ -1,13 +1,5 @@
 package main
 
-import (
-	"context"
-	"fmt"
-	"log"
-
-	"github.com/jackc/pgx/v5"
-)
-
 // type Coin struct {
 // 	Title string
 // 	Price float64
@@ -17,9 +9,12 @@ import (
 // 	fromSyms = "fsyms"
 // 	toSyms   = "tsyms"
 // 	currency = "USD"
+// 	max      = "MAX"
+// 	min      = "MIN"
+// 	avg      = "AVG"
 // )
 
-// func GetActualRates(ctx context.Context, baseUrl, apiKey string, titles []string) ([]Coin, error) {
+// func GetActualRates(ctx context.Context, baseUrl, apiKey string, titles []string, extraArg string) ([]Coin, error) {
 // 	URLRaw, err := url.Parse(baseUrl)
 // 	if err != nil {
 // 		return nil, fmt.Errorf("failed to parse url: %v", err)
@@ -38,89 +33,107 @@ import (
 // 		return nil, errors.Wrapf(entities.ErrInternal, "failed to encode url: %v", err)
 // 	}
 
-// 	fmt.Println(URLRaw.String())
+// 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, URLRaw.String(), nil)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to create new request, err: %v", err)
+// 	}
 
-// req, err := http.NewRequestWithContext(ctx, http.MethodGet, fUrl.String(), nil)
-// if err != nil {
-// 	return nil, fmt.Errorf("failed to create new request, err: %v", err)
-// }
+// 	req.Header.Set("Authorization", "Apikey "+apiKey)
 
-// req.Header.Set("Authorization", "Apikey "+apiKey)
+// 	client := http.Client{}
 
-// client := http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to execute request, err: %v", err)
+// 	}
+// 	defer resp.Body.Close()
 
-// resp, err := client.Do(req)
-// if err != nil {
-// 	return nil, fmt.Errorf("failed to execute request, err: %v", err)
-// }
-// defer resp.Body.Close()
+// 	if resp.StatusCode != http.StatusOK {
+// 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+// 	}
 
-// if resp.StatusCode != http.StatusOK {
-// 	return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-// }
+// 	body, err := io.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to read response body: %v", err)
+// 	}
 
-// body, err := io.ReadAll(resp.Body)
-// if err != nil {
-// 	return nil, fmt.Errorf("failed to read response body: %v", err)
-// }
+// 	type CryptoData struct {
+// 		RAW map[string]struct {
+// 			USD struct {
+// 				PRICE   float64 `json:"PRICE"`
+// 				HIGHDAY float64 `json:"HIGHDAY"`
+// 				LOWDAY  float64 `json:"LOWDAY"`
+// 			}
+// 		}
+// 	}
 
-// var data map[string]map[string]float64
-// err = json.Unmarshal(body, &data)
-// if err != nil {
-// 	return nil, fmt.Errorf("failed to parse response body, invalid JSON format: %v", err)
-// }
+// 	var data CryptoData
+// 	err = json.Unmarshal(body, &data)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to parse response body, invalid JSON format: %v", err)
+// 	}
 
-// coins := make([]Coin, 0, len(data))
-// for title, value := range data {
-// 	price := value[currency]
+// 	coins := make([]Coin, 0, len(data.RAW))
+// 	var price float64
+// 	for coinTitle, info := range data.RAW {
+// 		switch extraArg {
+// 		case max:
+// 			price = info.USD.HIGHDAY
+// 		case min:
+// 			price = info.USD.LOWDAY
+// 		case avg:
+// 			price = (info.USD.PRICE + info.USD.HIGHDAY + info.USD.LOWDAY) / 3
+// 		default:
+// 			price = info.USD.PRICE
+// 		}
+// 		coin := Coin{Title: coinTitle, Price: info.USD.PRICE}
 
-// 	coin := Coin{Title: title, Price: price}
+// 		coins = append(coins, coin)
+// 	}
 
-// 	coins = append(coins, coin)
-// }
-// return nil, nil
+// 	return coins, nil
 // }
 
 // func main() {
 // 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 // 	defer cancel()
 
-// 	titles := []string{"BTC", "ETH", "DOGE"}
-// 	url := "https://min-api.cryptocompare.com/data/pricemulti"
+// 	titles := []string{"BTC", "ETH", "DOGE", "XRP"}
+// 	url := "https://min-api.cryptocompare.com/data/pricemultifull"
 // 	apiKey := "851e396ad68e892830b474f074b051d2104b77576c25b9058ef16d4a477515d8"
 
-// 	_, _ = GetActualRates(ctx, url, apiKey, titles)
-// 	// if err != nil {
-// 	// 	log.Fatal(err)
-// 	// }
+// 	coins, err := GetActualRates(ctx, url, apiKey, titles, "")
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
 // 	// current := time.Now().Format("2006-01-02")
 
-// 	// fmt.Println(coins)
+// 	fmt.Println(coins)
 // 	// fmt.Println(current)
 // }
 
 // package main
 
 // import (
-// 	"database/sql"
+// 	"context"
 // 	"fmt"
 // 	"log"
 
-// 	_ "github.com/jackc/pgx/v5"
+// 	"github.com/jackc/pgx/v5"
 // )
 
-func main() {
-	connStr := "postgresql://user:pswd@localhost:5434/crypto_rate?sslmode=disable"
-	conn, err := pgx.Connect(context.Background(), connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
+// func main() {
+// 	connStr := "postgres://user:pswd@localhost:5432/crypto_rate?sslmode=disable"
+// 	conn, err := pgx.Connect(context.Background(), connStr)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-	if err := conn.Ping(context.Background()); err != nil {
-		log.Fatal(err)
-	}
+// 	if err := conn.Ping(context.Background()); err != nil {
+// 		log.Fatal(err)
+// 	}
 
-	fmt.Println("connected...")
+// 	fmt.Println("connected...")
 
-}
+// }
