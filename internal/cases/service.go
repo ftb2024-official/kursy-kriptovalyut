@@ -141,6 +141,24 @@ func (s *Service) GetAggRates(ctx context.Context, requestedCoinTitles []string,
 	return append(aggCoins, newAggCoins...), nil
 }
 
+func (s *Service) ActualizeRates(ctx context.Context) error {
+	existingTitles, err := s.storage.GetCoinsList(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to get list of coin titles")
+	}
+
+	if len(existingTitles) == 0 {
+		return nil
+	}
+
+	_, err = s.handleMissingTitles(ctx, existingTitles, "PRICE")
+	if err != nil {
+		return errors.Wrap(err, "failed to actualize coin rates")
+	}
+
+	return nil
+}
+
 func (s *Service) handleMissingTitles(ctx context.Context, missingTitles []string, extraArg string) ([]entities.Coin, error) {
 	// получаем актуальные данные по отсутствующим монетам от провайдера
 	newCoins, err := s.provider.GetActualRates(ctx, missingTitles, extraArg)

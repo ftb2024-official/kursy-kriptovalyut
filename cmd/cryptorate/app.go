@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"kursy-kriptovalyut/internal/adapters/provider"
 	"kursy-kriptovalyut/internal/adapters/storage"
@@ -13,9 +14,10 @@ import (
 	"kursy-kriptovalyut/internal/ports"
 )
 
-// os.Getenv()
-
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	provider, err := provider.NewCryptoCompare("https://min-api.cryptocompare.com/data/pricemultifull", "851e396ad68e892830b474f074b051d2104b77576c25b9058ef16d4a477515d8")
 	if err != nil {
 		log.Fatal(err)
@@ -41,7 +43,6 @@ func main() {
 		Handler: server,
 	}
 
-	//
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 
@@ -57,10 +58,28 @@ func main() {
 		}
 	}()
 
+	go startTicker(ctx, service)
+
 	log.Println("Server running on port :8080")
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server error: %v", err)
 	}
 }
 
-// NewApp().Run()
+func startTicker(ctx context.Context, service *cases.Service) {
+	ticker := time.NewTicker(time.Minute * 5)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			// fmt.Println("tick-tack")
+			if err := service.ActualizeRates(ctx); err != nil {
+				log.Println("Failed to actualize rates:", err)
+			}
+		case <-ctx.Done():
+			log.Println("Stopping ticker...")
+			return
+		}
+	}
+}
