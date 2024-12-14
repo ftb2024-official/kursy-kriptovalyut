@@ -21,11 +21,11 @@ func GetLogger() *zap.Logger {
 	return instance
 }
 
-func syncLogger() {
-	if instance != nil {
-		_ = instance.Sync()
-	}
-}
+// func syncLogger() {
+// 	if instance != nil {
+// 		_ = instance.Sync()
+// 	}
+// }
 
 func initLogger() *zap.Logger {
 	fileSyncer := zapcore.AddSync(&lumberjack.Logger{
