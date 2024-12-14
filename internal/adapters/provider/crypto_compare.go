@@ -14,6 +14,8 @@ import (
 	"kursy-kriptovalyut/pkg/logger"
 )
 
+var log = logger.NewLogger()
+
 type CryptoCompare struct {
 	baseUrl    string
 	apiKey     string
@@ -31,8 +33,6 @@ func NewCryptoCompare(baseUrl string, apiKey string) (*CryptoCompare, error) {
 		httpClient: &http.Client{},
 	}, nil
 }
-
-var log = logger.GetLogger()
 
 const (
 	fromSyms = "fsyms"

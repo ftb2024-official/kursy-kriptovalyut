@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"os"
 	"sync"
 
 	"go.uber.org/zap"
@@ -9,34 +10,37 @@ import (
 )
 
 var (
-	instance *zap.Logger
-	once     sync.Once
+	logger *zap.Logger
+	once   sync.Once
 )
 
-func GetLogger() *zap.Logger {
+func NewLogger() *zap.Logger {
 	once.Do(func() {
-		instance = initLogger()
+		stdout := zapcore.AddSync(os.Stdout)
+		file := zapcore.AddSync(&lumberjack.Logger{
+			Filename: "./../../logs/app.log",
+			MaxSize:  10,
+			MaxAge:   7,
+		})
+		level := zap.NewAtomicLevelAt(zap.InfoLevel)
+
+		prodCfg := zap.NewProductionEncoderConfig()
+		prodCfg.TimeKey = "ts"
+		prodCfg.EncodeTime = zapcore.ISO8601TimeEncoder
+
+		devCfg := zap.NewDevelopmentEncoderConfig()
+		devCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
+
+		consoleEncoder := zapcore.NewConsoleEncoder(devCfg)
+		fileEncoder := zapcore.NewJSONEncoder(prodCfg)
+
+		core := zapcore.NewTee(
+			zapcore.NewCore(consoleEncoder, stdout, level),
+			zapcore.NewCore(fileEncoder, file, level),
+		)
+
+		logger = zap.New(core)
 	})
 
-	return instance
-}
-
-// func syncLogger() {
-// 	if instance != nil {
-// 		_ = instance.Sync()
-// 	}
-// }
-
-func initLogger() *zap.Logger {
-	fileSyncer := zapcore.AddSync(&lumberjack.Logger{
-		Filename: "app.log",
-		MaxSize:  10,
-		MaxAge:   30,
-		Compress: true,
-	})
-
-	encoder := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
-	core := zapcore.NewCore(encoder, fileSyncer, zapcore.InfoLevel)
-
-	return zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
+	return logger
 }

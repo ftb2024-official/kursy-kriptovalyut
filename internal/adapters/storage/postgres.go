@@ -12,11 +12,11 @@ import (
 	"kursy-kriptovalyut/pkg/logger"
 )
 
+var log = logger.NewLogger()
+
 type Postgres struct {
 	dbPool *pgxpool.Pool
 }
-
-var log = logger.GetLogger()
 
 func NewPostgres(connStr string) (*Postgres, error) {
 	if connStr == "" {

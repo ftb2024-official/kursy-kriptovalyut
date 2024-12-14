@@ -16,6 +16,8 @@ import (
 	"kursy-kriptovalyut/pkg/logger"
 )
 
+var log = logger.NewLogger()
+
 type Server struct {
 	service Service
 	server  *chi.Mux
@@ -44,8 +46,6 @@ func (s *Server) routes() {
 	s.server.Get("/rates/agg", s.GetAggregateRates)
 	s.server.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("http://localhost:8080/swagger/doc.json")))
 }
-
-var log = logger.GetLogger()
 
 // @Summary Get last rates
 // @Description Get the latest rates for specified coins

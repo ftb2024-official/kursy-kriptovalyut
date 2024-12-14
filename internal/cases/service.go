@@ -10,12 +10,12 @@ import (
 	"kursy-kriptovalyut/pkg/logger"
 )
 
+var log = logger.NewLogger()
+
 type Service struct {
 	provider CryptoProvider
 	storage  Storage
 }
-
-var log = logger.GetLogger()
 
 func NewService(provider CryptoProvider, storage Storage) (*Service, error) {
 	if provider == nil || provider == CryptoProvider(nil) {
