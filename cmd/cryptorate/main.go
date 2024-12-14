@@ -1,139 +1,92 @@
 package main
 
-// type Coin struct {
-// 	Title string
-// 	Price float64
-// }
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"time"
 
-// const (
-// 	fromSyms = "fsyms"
-// 	toSyms   = "tsyms"
-// 	currency = "USD"
-// 	max      = "MAX"
-// 	min      = "MIN"
-// 	avg      = "AVG"
-// )
+	"kursy-kriptovalyut/internal/adapters/provider"
+	"kursy-kriptovalyut/internal/adapters/storage"
+	"kursy-kriptovalyut/internal/app"
+	"kursy-kriptovalyut/internal/cases"
+	"kursy-kriptovalyut/internal/ports"
+)
 
-// func GetActualRates(ctx context.Context, baseUrl, apiKey string, titles []string, extraArg string) ([]Coin, error) {
-// 	URLRaw, err := url.Parse(baseUrl)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to parse url: %v", err)
-// 	}
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-// 	// manual raw query
-// 	// rawQuery := fmt.Sprintf("%s=%s&%s=%s", fromSyms, strings.Join(titles, ","), toSyms, currency)
-// 	// fUrl.RawQuery = rawQuery
+	env := app.NewEnv()
+	baseUrl := env.Url
+	apiKey := env.ApiKey
+	connStr := fmt.Sprintf("postgres://%v:%v@%v:%v/%v?sslmode=disable", env.PgUser, env.PgPswd, env.PgHost, env.PgPort, env.PgDB)
 
-// 	queries := URLRaw.Query()
-// 	queries.Add(fromSyms, strings.Join(titles, ","))
-// 	queries.Add(toSyms, currency)
+	provider, err := provider.NewCryptoCompare(baseUrl, apiKey)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-// 	URLRaw.RawQuery = queries.Encode()
-// 	if err != nil {
-// 		return nil, errors.Wrapf(entities.ErrInternal, "failed to encode url: %v", err)
-// 	}
+	storage, err := storage.NewPostgres(connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-// 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, URLRaw.String(), nil)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to create new request, err: %v", err)
-// 	}
+	service, err := cases.NewService(provider, storage)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-// 	req.Header.Set("Authorization", "Apikey "+apiKey)
+	server, err := ports.NewServer(service)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-// 	client := http.Client{}
+	srv := &http.Server{
+		Addr:    env.SrvPort,
+		Handler: server,
+	}
 
-// 	resp, err := client.Do(req)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to execute request, err: %v", err)
-// 	}
-// 	defer resp.Body.Close()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
 
-// 	if resp.StatusCode != http.StatusOK {
-// 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-// 	}
+	go func() {
+		<-quit
+		log.Println("Shutting down server...")
 
-// 	body, err := io.ReadAll(resp.Body)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to read response body: %v", err)
-// 	}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-// 	type CryptoData struct {
-// 		RAW map[string]struct {
-// 			USD struct {
-// 				PRICE   float64 `json:"PRICE"`
-// 				HIGHDAY float64 `json:"HIGHDAY"`
-// 				LOWDAY  float64 `json:"LOWDAY"`
-// 			}
-// 		}
-// 	}
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Fatalf("Server forced to shutdown: %v", err)
+		}
+	}()
 
-// 	var data CryptoData
-// 	err = json.Unmarshal(body, &data)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to parse response body, invalid JSON format: %v", err)
-// 	}
+	go startTicker(ctx, service)
 
-// 	coins := make([]Coin, 0, len(data.RAW))
-// 	var price float64
-// 	for coinTitle, info := range data.RAW {
-// 		switch extraArg {
-// 		case max:
-// 			price = info.USD.HIGHDAY
-// 		case min:
-// 			price = info.USD.LOWDAY
-// 		case avg:
-// 			price = (info.USD.PRICE + info.USD.HIGHDAY + info.USD.LOWDAY) / 3
-// 		default:
-// 			price = info.USD.PRICE
-// 		}
-// 		coin := Coin{Title: coinTitle, Price: info.USD.PRICE}
+	log.Printf("Server running on port %v", env.SrvPort)
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("Server error: %v", err)
+	}
+}
 
-// 		coins = append(coins, coin)
-// 	}
+func startTicker(ctx context.Context, service *cases.Service) {
+	ticker := time.NewTicker(time.Minute * 5)
+	defer ticker.Stop()
 
-// 	return coins, nil
-// }
-
-// func main() {
-// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-// 	defer cancel()
-
-// 	titles := []string{"BTC", "ETH", "DOGE", "XRP"}
-// 	url := "https://min-api.cryptocompare.com/data/pricemultifull"
-// 	apiKey := "851e396ad68e892830b474f074b051d2104b77576c25b9058ef16d4a477515d8"
-
-// 	coins, err := GetActualRates(ctx, url, apiKey, titles, "")
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	// current := time.Now().Format("2006-01-02")
-
-// 	fmt.Println(coins)
-// 	// fmt.Println(current)
-// }
-
-// package main
-
-// import (
-// 	"context"
-// 	"fmt"
-// 	"log"
-
-// 	"github.com/jackc/pgx/v5"
-// )
-
-// func main() {
-// 	connStr := "postgres://user:pswd@localhost:5432/crypto_rate?sslmode=disable"
-// 	conn, err := pgx.Connect(context.Background(), connStr)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	if err := conn.Ping(context.Background()); err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	fmt.Println("connected...")
-
-// }
+	for {
+		select {
+		case <-ticker.C:
+			fmt.Println("tick-tack")
+			if err := service.ActualizeRates(ctx); err != nil {
+				log.Println("Failed to actualize rates:", err)
+			}
+		case <-ctx.Done():
+			log.Println("Stopping ticker...")
+			return
+		}
+	}
+}

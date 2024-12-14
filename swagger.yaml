@@ -1,0 +1,92 @@
+openapi: 3.1.0
+info:
+  title: Crypto Rates API
+  version: 1.0.0
+paths:
+  /rates/last:
+    get:
+      summary: Get last rates
+      description: Get the latest rates for specified coins
+      parameters:
+        - name: titles
+          in: query
+          description: Comma-separated list of coin titles
+          required: true
+          schema:
+            type: string
+            example: BTC,ETH
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Coin'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResp'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResp'
+  /rates/agg:
+    get:
+      summary: Get aggregated rates
+      description: Get aggregated rates for specified coins using an aggregation function
+      parameters:
+        - name: titles
+          in: query
+          description: Comma-separated list of coin titles
+          required: true
+          schema:
+            type: string
+            example: BTC,ETH
+        - name: aggFunc
+          in: query
+          description: Aggregation function (MAX, MIN, AVG)
+          required: true
+          schema:
+            type: string
+            example: MAX
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Coin'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResp'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrResp'
+components:
+  schemas:
+    Coin:
+      type: object
+      properties:
+        title:
+          type: string
+        price:
+          type: number
+    ErrResp:
+      type: object
+      properties:
+        error:
+          type: string

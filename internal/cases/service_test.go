@@ -2,7 +2,6 @@ package cases_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -105,7 +104,7 @@ func TestGetLastRates_Case2_Line_59(t *testing.T) {
 	nonExistingCoin := entities.Coin{Title: "ETH", Price: 10}
 
 	storage.EXPECT().GetCoinsList(ctx).Return([]string{}, nil)
-	provider.EXPECT().GetActualRates(ctx, requestedTitles, "").Return([]entities.Coin{nonExistingCoin}, nil)
+	provider.EXPECT().GetActualRates(ctx, requestedTitles, "PRICE").Return([]entities.Coin{nonExistingCoin}, nil)
 	storage.EXPECT().Store(ctx, []entities.Coin{nonExistingCoin}).Return(nil)
 
 	coins, err := srv.GetLastRates(ctx, requestedTitles)
@@ -136,7 +135,7 @@ func TestGetLastRates_Case3_Line_73(t *testing.T) {
 	requestedTitles := []string{"BTC", "ETH", "USDT"}
 
 	storage.EXPECT().GetCoinsList(ctx).Return([]string{"BTC", "ETH"}, nil)
-	provider.EXPECT().GetActualRates(ctx, []string{"USDT"}, "").Return([]entities.Coin{nonExistingCoin}, nil)
+	provider.EXPECT().GetActualRates(ctx, []string{"USDT"}, "PRICE").Return([]entities.Coin{nonExistingCoin}, nil)
 	storage.EXPECT().Store(ctx, []entities.Coin{nonExistingCoin}).Return(nil)
 	storage.EXPECT().GetActualCoins(ctx, []string{"BTC", "ETH"}).Return([]entities.Coin{ethCoin, btcCoin}, nil)
 
@@ -209,7 +208,7 @@ func TestGetLastRates_Case6_Line_131(t *testing.T) {
 	requestedTitles := []string{"BTC"}
 
 	storage.EXPECT().GetCoinsList(ctx).Return([]string{}, nil)
-	provider.EXPECT().GetActualRates(ctx, requestedTitles, "").Return(nil, errors.New("GetActualRates error"))
+	provider.EXPECT().GetActualRates(ctx, requestedTitles, "PRICE").Return(nil, errors.New("GetActualRates error"))
 
 	coins, err := srv.GetLastRates(ctx, requestedTitles)
 	require.Nil(t, coins)
@@ -234,7 +233,7 @@ func TestGetLastRates_Case7_Line_136(t *testing.T) {
 	nonExistingCoin := entities.Coin{Title: "BTC", Price: 100}
 
 	storage.EXPECT().GetCoinsList(ctx).Return([]string{}, nil)
-	provider.EXPECT().GetActualRates(ctx, requestedTitles, "").Return([]entities.Coin{nonExistingCoin}, nil)
+	provider.EXPECT().GetActualRates(ctx, requestedTitles, "PRICE").Return([]entities.Coin{nonExistingCoin}, nil)
 	storage.EXPECT().Store(ctx, []entities.Coin{nonExistingCoin}).Return(errors.New("Store error"))
 
 	coins, err := srv.GetLastRates(ctx, requestedTitles)
@@ -259,7 +258,7 @@ func TestGetLastRates_Case8_Line_65(t *testing.T) {
 	requestedTitles := []string{"BTC", "ETH"}
 
 	storage.EXPECT().GetCoinsList(ctx).Return([]string{"BTC"}, nil)
-	provider.EXPECT().GetActualRates(ctx, []string{"ETH"}, "").Return(nil, errors.New("GetActualRates error"))
+	provider.EXPECT().GetActualRates(ctx, []string{"ETH"}, "PRICE").Return(nil, errors.New("GetActualRates error"))
 
 	coins, err := srv.GetLastRates(ctx, requestedTitles)
 	require.Nil(t, coins)
@@ -284,7 +283,7 @@ func TestGetLastRates_Case9_Line_70(t *testing.T) {
 	nonExistingCoin := entities.Coin{Title: "ETH", Price: 10}
 
 	storage.EXPECT().GetCoinsList(ctx).Return([]string{"BTC"}, nil)
-	provider.EXPECT().GetActualRates(ctx, []string{"ETH"}, "").Return([]entities.Coin{nonExistingCoin}, nil)
+	provider.EXPECT().GetActualRates(ctx, []string{"ETH"}, "PRICE").Return([]entities.Coin{nonExistingCoin}, nil)
 	storage.EXPECT().Store(ctx, []entities.Coin{nonExistingCoin}).Return(nil)
 	storage.EXPECT().GetActualCoins(ctx, []string{"BTC"}).Return(nil, errors.New("GetActualCoins error"))
 
@@ -356,17 +355,15 @@ func TestGetAggRates_Case3_Line_108(t *testing.T) {
 
 	ctx := context.Background()
 	requestedTitles := []string{"BTC"}
-	aggFuncName := "max"
+	aggFuncName := "MAX"
 
 	storage.EXPECT().GetCoinsList(ctx).Return([]string{}, nil)
-	provider.EXPECT().GetActualRates(ctx, requestedTitles, "").Return([]entities.Coin{{Title: "BTC", Price: 100}}, nil)
+	provider.EXPECT().GetActualRates(ctx, requestedTitles, "MAX").Return([]entities.Coin{{Title: "BTC", Price: 100}}, nil)
 	storage.EXPECT().Store(ctx, []entities.Coin{{Title: "BTC", Price: 100}}).Return(nil)
 
 	coins, err := srv.GetAggRates(ctx, requestedTitles, aggFuncName)
-	require.Nil(t, coins)
-
-	expectedErr := fmt.Sprintf("new coins %v added to the storage, but aggregation is unavailable for 5 minutes", requestedTitles)
-	require.ErrorContains(t, err, expectedErr)
+	require.NoError(t, err)
+	require.ElementsMatch(t, coins, []entities.Coin{{Title: "BTC", Price: 100}})
 }
 
 func TestGetAggRates_Case4_Line_124(t *testing.T) {
@@ -389,15 +386,13 @@ func TestGetAggRates_Case4_Line_124(t *testing.T) {
 	existingCoin := entities.Coin{Title: "BTC", Price: 100}
 
 	storage.EXPECT().GetCoinsList(ctx).Return([]string{"BTC"}, nil)
-	provider.EXPECT().GetActualRates(ctx, []string{"ETH"}, "").Return([]entities.Coin{nonExistingCoin}, nil)
+	provider.EXPECT().GetActualRates(ctx, []string{"ETH"}, "max").Return([]entities.Coin{nonExistingCoin}, nil)
 	storage.EXPECT().Store(ctx, []entities.Coin{nonExistingCoin}).Return(nil)
 	storage.EXPECT().GetAggregateCoins(ctx, []string{"BTC"}, aggFuncName).Return([]entities.Coin{existingCoin}, nil)
 
 	coins, err := srv.GetAggRates(ctx, requestedTitles, aggFuncName)
-	require.ElementsMatch(t, coins, []entities.Coin{existingCoin})
-
-	expectedErr := fmt.Sprintf("partial result returned for coins %v; new coins %v added to the storage, but aggregation is unavailable for 5 minutes", []string{"BTC"}, []string{"ETH"})
-	require.ErrorContains(t, err, expectedErr)
+	require.NoError(t, err)
+	require.ElementsMatch(t, coins, []entities.Coin{existingCoin, nonExistingCoin})
 }
 
 func TestGetAggRates_Case5_Line_85(t *testing.T) {
@@ -467,7 +462,7 @@ func TestGetAggRates_Case7_Line_105(t *testing.T) {
 	aggFuncName := "max"
 
 	storage.EXPECT().GetCoinsList(ctx).Return([]string{}, nil)
-	provider.EXPECT().GetActualRates(ctx, requestedTitles, "").Return(nil, errors.New("GetActualRates"))
+	provider.EXPECT().GetActualRates(ctx, requestedTitles, aggFuncName).Return(nil, errors.New("GetActualRates"))
 
 	coins, err := srv.GetAggRates(ctx, requestedTitles, aggFuncName)
 	require.Nil(t, coins)
@@ -492,7 +487,7 @@ func TestGetAggRates_Case8_Line_115(t *testing.T) {
 	aggFuncName := "max"
 
 	storage.EXPECT().GetCoinsList(ctx).Return([]string{"BTC"}, nil)
-	provider.EXPECT().GetActualRates(ctx, []string{"ETH"}, "").Return(nil, errors.New("GetActualRates error"))
+	provider.EXPECT().GetActualRates(ctx, []string{"ETH"}, aggFuncName).Return(nil, errors.New("GetActualRates error"))
 
 	coins, err := srv.GetAggRates(ctx, requestedTitles, aggFuncName)
 	require.Nil(t, coins)
@@ -517,11 +512,98 @@ func TestGetAggRates_Case9_Line_120(t *testing.T) {
 	aggFuncName := "max"
 
 	storage.EXPECT().GetCoinsList(ctx).Return([]string{"BTC"}, nil)
-	provider.EXPECT().GetActualRates(ctx, []string{"ETH"}, "").Return([]entities.Coin{{Title: "ETH", Price: 10}}, nil)
+	provider.EXPECT().GetActualRates(ctx, []string{"ETH"}, aggFuncName).Return([]entities.Coin{{Title: "ETH", Price: 10}}, nil)
 	storage.EXPECT().Store(ctx, []entities.Coin{{Title: "ETH", Price: 10}}).Return(nil)
 	storage.EXPECT().GetAggregateCoins(ctx, []string{"BTC"}, aggFuncName).Return(nil, errors.New("GetAggregateCoins error"))
 
 	coins, err := srv.GetAggRates(ctx, requestedTitles, aggFuncName)
 	require.Nil(t, coins)
 	require.ErrorContains(t, err, "failed to get aggregated coin data from storage")
+}
+
+func TestActualizeRates_Case1(t *testing.T) {
+	t.Parallel()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	provider := mock_cases.NewMockCryptoProvider(ctrl)
+	storage := mock_cases.NewMockStorage(ctrl)
+
+	srv, err := cases.NewService(provider, storage)
+	require.NoError(t, err)
+	require.NotNil(t, srv)
+
+	ctx := context.Background()
+	requestedTitles := []string{"BTC"}
+	aggFuncName := "PRICE"
+
+	storage.EXPECT().GetCoinsList(ctx).Return(requestedTitles, nil)
+	provider.EXPECT().GetActualRates(ctx, requestedTitles, aggFuncName).Return([]entities.Coin{{Title: "BTC", Price: 100}}, nil)
+	storage.EXPECT().Store(ctx, []entities.Coin{{Title: "BTC", Price: 100}}).Return(nil)
+
+	err = srv.ActualizeRates(ctx)
+	require.NoError(t, err)
+}
+
+func TestActualizeRates_Case2(t *testing.T) {
+	t.Parallel()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	provider := mock_cases.NewMockCryptoProvider(ctrl)
+	storage := mock_cases.NewMockStorage(ctrl)
+
+	srv, err := cases.NewService(provider, storage)
+	require.NoError(t, err)
+	require.NotNil(t, srv)
+
+	ctx := context.Background()
+
+	storage.EXPECT().GetCoinsList(ctx).Return([]string{}, errors.New("GetCoinsList error"))
+
+	err = srv.ActualizeRates(ctx)
+	require.ErrorContains(t, err, "failed to get list of coin titles")
+}
+
+func TestActualizeRates_Case3(t *testing.T) {
+	t.Parallel()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	provider := mock_cases.NewMockCryptoProvider(ctrl)
+	storage := mock_cases.NewMockStorage(ctrl)
+
+	srv, err := cases.NewService(provider, storage)
+	require.NoError(t, err)
+	require.NotNil(t, srv)
+
+	ctx := context.Background()
+
+	storage.EXPECT().GetCoinsList(ctx).Return([]string{}, nil)
+
+	err = srv.ActualizeRates(ctx)
+	require.Nil(t, err)
+}
+
+func TestActualizeRates_Case4(t *testing.T) {
+	t.Parallel()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	provider := mock_cases.NewMockCryptoProvider(ctrl)
+	storage := mock_cases.NewMockStorage(ctrl)
+
+	srv, err := cases.NewService(provider, storage)
+	require.NoError(t, err)
+	require.NotNil(t, srv)
+
+	ctx := context.Background()
+	requestedTitles := []string{"BTC"}
+	aggFuncName := "PRICE"
+
+	storage.EXPECT().GetCoinsList(ctx).Return(requestedTitles, nil)
+	provider.EXPECT().GetActualRates(ctx, requestedTitles, aggFuncName).Return(nil, errors.New("GetActualRates error"))
+
+	err = srv.ActualizeRates(ctx)
+	require.ErrorContains(t, err, "failed to actualize coin rates")
 }

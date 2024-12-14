@@ -5,8 +5,11 @@ import (
 	"net/http"
 	"strings"
 
+	// _ "kursy-kriptovalyut/cmd/cryptorate/docs"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	"kursy-kriptovalyut/internal/entities"
 	"kursy-kriptovalyut/pkg/dto"
@@ -39,15 +42,25 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 func (s *Server) routes() {
 	s.server.Get("/rates/last", s.GetLastRates)
 	s.server.Get("/rates/agg", s.GetAggregateRates)
+	s.server.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("http://localhost:8080/swagger/doc.json")))
 }
 
 var log = logger.GetLogger()
 
+// @Summary Get last rates
+// @Description Get the latest rates for specified coins
+// @Tags rates
+// @Produce json
+// @Param titles query string true "Comma-separated list of coin titles" example(BTC,ETH)
+// @Success 200 {array} dto.CoinDTO
+// @Failure 400 {object} dto.ErrRespDTO
+// @Failure 500 {object} dto.ErrRespDTO
+// @Router /rates/last [get]
 func (s *Server) GetLastRates(rw http.ResponseWriter, r *http.Request) {
 	titlesQueryParam := r.URL.Query().Get("titles")
 	if titlesQueryParam == "" {
 		log.Info("1")
-		respondWithJSON(rw, http.StatusBadRequest, map[string]string{"error": "missing 'titles' query parameter"})
+		respondWithJSON(rw, http.StatusBadRequest, dto.ErrRespDTO{"error": "missing 'titles' query parameter"})
 		return
 	}
 
@@ -58,12 +71,12 @@ func (s *Server) GetLastRates(rw http.ResponseWriter, r *http.Request) {
 		log.Info("2")
 		if errors.Is(err, entities.ErrNotFound) {
 			log.Info("3")
-			respondWithJSON(rw, http.StatusNotFound, map[string]string{"error": err.Error()})
+			respondWithJSON(rw, http.StatusNotFound, dto.ErrRespDTO{"error": err.Error()})
 			return
 		}
 
 		log.Info("4")
-		respondWithJSON(rw, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		respondWithJSON(rw, http.StatusInternalServerError, dto.ErrRespDTO{"error": err.Error()})
 		return
 	}
 
@@ -75,12 +88,22 @@ func (s *Server) GetLastRates(rw http.ResponseWriter, r *http.Request) {
 	respondWithJSON(rw, http.StatusOK, response)
 }
 
+// @Summary Get aggregated rates
+// @Description Get aggregated rates for specified coins using an aggregation function
+// @Tags rates
+// @Produce json
+// @Param titles query string true "Comma-separated list of coin titles" example(BTC,ETH)
+// @Param aggFunc query string true "Aggregation function (MAX, MIN, AVG)" example(MAX)
+// @Success 200 {array} dto.CoinDTO
+// @Failure 400 {object} dto.ErrRespDTO
+// @Failure 500 {object} dto.ErrRespDTO
+// @Router /rates/agg [get]
 func (s *Server) GetAggregateRates(rw http.ResponseWriter, r *http.Request) {
 	titlesQueryParam := r.URL.Query().Get("titles")
 	aggFuncQueryParam := r.URL.Query().Get("aggFunc")
 	if titlesQueryParam == "" || aggFuncQueryParam == "" {
 		log.Info("6")
-		respondWithJSON(rw, http.StatusBadRequest, map[string]string{"error": "missing 'titles' or 'aggFunc' query parameters"})
+		respondWithJSON(rw, http.StatusBadRequest, dto.ErrRespDTO{"error": "missing 'titles' or 'aggFunc' query parameters"})
 		return
 	}
 
@@ -93,12 +116,12 @@ func (s *Server) GetAggregateRates(rw http.ResponseWriter, r *http.Request) {
 		log.Info("7")
 		if errors.Is(err, entities.ErrNotFound) {
 			log.Info("8")
-			respondWithJSON(rw, http.StatusNotFound, map[string]string{"error": err.Error()})
+			respondWithJSON(rw, http.StatusNotFound, dto.ErrRespDTO{"error": err.Error()})
 			return
 		}
 
 		log.Info("9")
-		respondWithJSON(rw, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		respondWithJSON(rw, http.StatusInternalServerError, dto.ErrRespDTO{"error": err.Error()})
 		return
 	}
 
