@@ -1,0 +1,9 @@
+cfg:
+  srv-port: ':8080'
+  pg-user: user
+  pg-pswd: pswd
+  pg-db: crypto_rate
+  pg-host: localhost
+  pg-port: 5434
+  url: https://min-api.cryptocompare.com/data/pricemultifull
+  api-key: 851e396ad68e892830b474f074b051d2104b77576c25b9058ef16d4a477515d8

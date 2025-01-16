@@ -1,0 +1,133 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "Chi Swagger Example",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "paths": {
+        "/rates/agg": {
+            "get": {
+                "description": "Get aggregated rates for specified coins using an aggregation function",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rates"
+                ],
+                "summary": "Get aggregated rates",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "BTC,ETH",
+                        "description": "Comma-separated list of coin titles",
+                        "name": "titles",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "MAX",
+                        "description": "Aggregation function (MAX, MIN, AVG)",
+                        "name": "aggFunc",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.CoinDTO"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrRespDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrRespDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/rates/last": {
+            "get": {
+                "description": "Get the latest rates for specified coins",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rates"
+                ],
+                "summary": "Get last rates",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "BTC,ETH",
+                        "description": "Comma-separated list of coin titles",
+                        "name": "titles",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.CoinDTO"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrRespDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrRespDTO"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dto.CoinDTO": {
+            "type": "object",
+            "properties": {
+                "price": {
+                    "type": "number"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ErrRespDTO": {
+            "type": "object",
+            "properties": {
+                "msg": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

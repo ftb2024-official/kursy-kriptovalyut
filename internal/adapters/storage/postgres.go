@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"kursy-kriptovalyut/internal/entities"
 	"kursy-kriptovalyut/pkg/logger"
@@ -38,16 +39,17 @@ func NewPostgres(connStr string) (*Postgres, error) {
 func (p *Postgres) Store(ctx context.Context, coins []entities.Coin) error {
 	query := "INSERT INTO coins (title, price) VALUES ($1, $2)" // пересмотреть вторую часть VALUES ($1, $2)
 
+	log.Info("(Store) inserting coins:", zap.Any("coins", coins))
 	for _, coin := range coins {
 		res, err := p.dbPool.Exec(ctx, query, coin.Title, coin.Price)
 		if err != nil {
-			log.Info("33")
+			log.Error("(Store) failed to insert:", zap.Any("coin", coin))
 			return errors.Wrapf(entities.ErrInternal, "failed to execute query: %v", err)
 		}
 
 		rows := res.RowsAffected()
 		if rows != 1 {
-			log.Info("34")
+			log.Error("(Store) affected more than one row")
 			return errors.Wrapf(entities.ErrInternal, "expected to affect 1 row, affected %v row(s)", rows)
 		}
 	}
@@ -58,11 +60,12 @@ func (p *Postgres) Store(ctx context.Context, coins []entities.Coin) error {
 func (p *Postgres) GetCoinsList(ctx context.Context) ([]string, error) {
 	query := "SELECT DISTINCT title FROM coins"
 
+	log.Info("(GetCoinsList) getting list of coin titles")
 	rows, err := p.dbPool.Query(ctx, query)
 	if err != nil {
-		log.Info("35")
+		log.Error("(GetCoinsList) failed to get list of coin titles")
 		if errors.Is(err, pgx.ErrNoRows) {
-			log.Info("36")
+			log.Error("(GetCoinsList) empty result set")
 			return nil, errors.Wrapf(entities.ErrNotFound, "empty result: %v", err.Error())
 		}
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to execute query: %v", err)
@@ -76,7 +79,7 @@ func (p *Postgres) GetCoinsList(ctx context.Context) ([]string, error) {
 
 	for rows.Next() {
 		if err := rows.Scan(&title); err != nil {
-			log.Info("37")
+			log.Error("(GetCoinsList) failed to copy title:", zap.Any("title", title))
 			return nil, errors.Wrapf(entities.ErrInternal, "failed to copy title: %v", err)
 		}
 
@@ -84,7 +87,7 @@ func (p *Postgres) GetCoinsList(ctx context.Context) ([]string, error) {
 	}
 
 	if err := rows.Err(); err != nil {
-		log.Info("38")
+		log.Error("(GetCoinsList) unexpected error:", zap.Any("err", err))
 		return nil, errors.Wrapf(entities.ErrInternal, "unexpected error: %v", err)
 	}
 
@@ -97,13 +100,16 @@ func (p *Postgres) GetActualCoins(ctx context.Context, titles []string) ([]entit
 	var coin entities.Coin
 	coins := make([]entities.Coin, 0, len(titles))
 
+	log.Info("(GetActualCoins) getting coins' last rates", zap.Any("coinTitles", titles))
 	for _, title := range titles {
 		if err := p.dbPool.QueryRow(ctx, query, title).Scan(&coin.Title, &coin.Price); err != nil {
-			log.Info("39")
+			log.Info("(GetActualCoins) failed to get coin:", zap.Any("coin", coin))
 			if errors.Is(err, pgx.ErrNoRows) {
-				log.Info("40")
+				log.Info("(GetActualCoins) empty result set")
 				continue
 			}
+
+			log.Error("(GetActualCoins) failed to copy coin:", zap.Any("coin", coin))
 			return nil, errors.Wrapf(entities.ErrInternal, "failed to copy title/price: %v", err)
 		}
 
@@ -119,13 +125,15 @@ func (p *Postgres) GetAggregateCoins(ctx context.Context, titles []string, aggFu
 	var coin entities.Coin
 	coins := make([]entities.Coin, 0, len(titles))
 
+	log.Info("(GetAggregateCoins) getting coins' aggregated rates", zap.Any("coinTitles", titles))
 	for _, title := range titles {
 		if err := p.dbPool.QueryRow(ctx, query, title).Scan(&coin.Title, &coin.Price); err != nil {
-			log.Info("42")
+			log.Info("(GetAggregateCoins) failed to get aggregated coin", zap.Any("aggCoin", coin))
 			if errors.Is(err, pgx.ErrNoRows) {
-				log.Info("43")
+				log.Info("(GetAggregateCoins) empty result set")
 				continue
 			}
+			log.Error("(GetAggregateCoins) failed to copy coin:", zap.Any("coin", coin))
 			return nil, errors.Wrapf(entities.ErrInternal, "failed to copy title/price: %v", err)
 		}
 

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	// _ "kursy-kriptovalyut/cmd/cryptorate/docs"
+	_ "kursy-kriptovalyut/docs"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
@@ -41,10 +41,16 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	s.server.ServeHTTP(rw, r)
 }
 
+// @title Chi Swagger Example
+// @version 1.0
+// @host localhost:8080
 func (s *Server) routes() {
 	s.server.Get("/rates/last", s.GetLastRates)
 	s.server.Get("/rates/agg", s.GetAggregateRates)
-	s.server.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("http://localhost:8080/swagger/doc.json")))
+
+	s.server.Mount("/swagger", httpSwagger.WrapHandler)
+	// url := httpSwagger.URL("http://localhost:8080/swagger/doc.json")
+	// s.server.Get("/swagger/*any", httpSwagger.WrapHandler(swaggerFiles.Handler, url))
 }
 
 // @Summary Get last rates
@@ -57,26 +63,34 @@ func (s *Server) routes() {
 // @Failure 500 {object} dto.ErrRespDTO
 // @Router /rates/last [get]
 func (s *Server) GetLastRates(rw http.ResponseWriter, r *http.Request) {
+	log.Info("(server.GetLastRates)")
 	titlesQueryParam := r.URL.Query().Get("titles")
 	if titlesQueryParam == "" {
-		log.Info("1")
-		respondWithJSON(rw, http.StatusBadRequest, dto.ErrRespDTO{"error": "missing 'titles' query parameter"})
+		log.Warn("(server.GetLastRates) missing 'titles' query parameter")
+		respondWithJSON(rw, http.StatusBadRequest, dto.ErrRespDTO{
+			StatusCode: http.StatusBadRequest,
+			Msg:        "missing 'titles' query parameter",
+		})
 		return
 	}
 
 	coinTitles := strings.Split(strings.ToUpper(strings.TrimSpace(titlesQueryParam)), ",")
 
+	log.Info("(server.service.GetLastRates)")
 	coins, err := s.service.GetLastRates(r.Context(), coinTitles)
 	if err != nil {
-		log.Info("2")
 		if errors.Is(err, entities.ErrNotFound) {
-			log.Info("3")
-			respondWithJSON(rw, http.StatusNotFound, dto.ErrRespDTO{"error": err.Error()})
+			respondWithJSON(rw, http.StatusNotFound, dto.ErrRespDTO{
+				StatusCode: http.StatusNotFound,
+				Msg:        err.Error(),
+			})
 			return
 		}
 
-		log.Info("4")
-		respondWithJSON(rw, http.StatusInternalServerError, dto.ErrRespDTO{"error": err.Error()})
+		respondWithJSON(rw, http.StatusInternalServerError, dto.ErrRespDTO{
+			StatusCode: http.StatusInternalServerError,
+			Msg:        err.Error(),
+		})
 		return
 	}
 
@@ -99,11 +113,14 @@ func (s *Server) GetLastRates(rw http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} dto.ErrRespDTO
 // @Router /rates/agg [get]
 func (s *Server) GetAggregateRates(rw http.ResponseWriter, r *http.Request) {
+	log.Info("(server.GetAggregateRates)")
 	titlesQueryParam := r.URL.Query().Get("titles")
 	aggFuncQueryParam := r.URL.Query().Get("aggFunc")
 	if titlesQueryParam == "" || aggFuncQueryParam == "" {
-		log.Info("6")
-		respondWithJSON(rw, http.StatusBadRequest, dto.ErrRespDTO{"error": "missing 'titles' or 'aggFunc' query parameters"})
+		log.Warn("(server.GetAggregateRates) missing 'titles' or 'aggFunc' query parameters")
+		respondWithJSON(rw, http.StatusBadRequest, dto.ErrRespDTO{
+			StatusCode: http.StatusBadRequest,
+			Msg:        "missing 'titles' or 'aggFunc' query parameters"})
 		return
 	}
 
@@ -113,15 +130,18 @@ func (s *Server) GetAggregateRates(rw http.ResponseWriter, r *http.Request) {
 	coins, err := s.service.GetAggRates(r.Context(), coinTitles, aggFuncName)
 
 	if err != nil {
-		log.Info("7")
 		if errors.Is(err, entities.ErrNotFound) {
-			log.Info("8")
-			respondWithJSON(rw, http.StatusNotFound, dto.ErrRespDTO{"error": err.Error()})
+			respondWithJSON(rw, http.StatusNotFound, dto.ErrRespDTO{
+				StatusCode: http.StatusNotFound,
+				Msg:        err.Error(),
+			})
 			return
 		}
 
-		log.Info("9")
-		respondWithJSON(rw, http.StatusInternalServerError, dto.ErrRespDTO{"error": err.Error()})
+		respondWithJSON(rw, http.StatusBadRequest, dto.ErrRespDTO{
+			StatusCode: http.StatusBadRequest,
+			Msg:        err.Error(),
+		})
 		return
 	}
 
@@ -137,7 +157,7 @@ func respondWithJSON(rw http.ResponseWriter, status int, data interface{}) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(status)
 	if err := json.NewEncoder(rw).Encode(data); err != nil {
-		log.Error("failed to encode response")
+		log.Error("(respondWithJSON) failed to encode response")
 		http.Error(rw, `{"error": "internal server error"}`, http.StatusInternalServerError)
 	}
 }

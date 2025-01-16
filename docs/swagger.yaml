@@ -1,0 +1,88 @@
+definitions:
+  dto.CoinDTO:
+    properties:
+      price:
+        type: number
+      title:
+        type: string
+    type: object
+  dto.ErrRespDTO:
+    properties:
+      msg:
+        type: string
+      status_code:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  title: Chi Swagger Example
+  version: "1.0"
+paths:
+  /rates/agg:
+    get:
+      description: Get aggregated rates for specified coins using an aggregation function
+      parameters:
+      - description: Comma-separated list of coin titles
+        example: BTC,ETH
+        in: query
+        name: titles
+        required: true
+        type: string
+      - description: Aggregation function (MAX, MIN, AVG)
+        example: MAX
+        in: query
+        name: aggFunc
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.CoinDTO'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrRespDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrRespDTO'
+      summary: Get aggregated rates
+      tags:
+      - rates
+  /rates/last:
+    get:
+      description: Get the latest rates for specified coins
+      parameters:
+      - description: Comma-separated list of coin titles
+        example: BTC,ETH
+        in: query
+        name: titles
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.CoinDTO'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrRespDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrRespDTO'
+      summary: Get last rates
+      tags:
+      - rates
+swagger: "2.0"

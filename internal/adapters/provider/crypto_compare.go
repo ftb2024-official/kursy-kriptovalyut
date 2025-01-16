@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"kursy-kriptovalyut/internal/entities"
 	"kursy-kriptovalyut/pkg/logger"
@@ -46,7 +47,7 @@ const (
 func (cc *CryptoCompare) GetActualRates(ctx context.Context, titles []string, extraArg string) ([]entities.Coin, error) {
 	rawURL, err := url.Parse(cc.baseUrl)
 	if err != nil {
-		log.Info("26")
+		log.Error("(GetActualRates) failed to parse base url:", zap.Any("url", cc.baseUrl))
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to parse url: %v", err)
 	}
 
@@ -60,13 +61,13 @@ func (cc *CryptoCompare) GetActualRates(ctx context.Context, titles []string, ex
 
 	rawURL.RawQuery, err = url.QueryUnescape(queries.Encode())
 	if err != nil {
-		log.Info("27")
+		log.Error("(GetActualRates) failed to encode url:", zap.Any("url", rawURL.String()))
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to encode url: %v", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL.String(), nil)
 	if err != nil {
-		log.Info("28")
+		log.Error("(GetActualRates) failed to create new request")
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to create new request, err: %v", err)
 	}
 
@@ -74,24 +75,25 @@ func (cc *CryptoCompare) GetActualRates(ctx context.Context, titles []string, ex
 
 	resp, err := cc.httpClient.Do(req)
 	if err != nil {
-		log.Info("29")
+		log.Error("(GetActualRates) failed to execute request")
 		return nil, errors.Wrapf(entities.ErrInternal, "failed to execute request, err: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Info("30")
+		log.Info("(GetActualRates) unexpected status code:", zap.Any("statusCode", resp.StatusCode))
 		return nil, errors.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Info("31")
+		log.Error("(GetActualRates) failed to read response body")
 		return nil, errors.Wrap(err, "failed to read response body")
 	}
 
 	strBody := string(body)
 	if strings.Contains(strBody, `"Response":"Error"`) {
+		log.Error("(GetActualRates) non-existing coin(s):", zap.Any("coinTitle(s)", titles))
 		return nil, errors.Wrapf(entities.ErrNotFound, "coin %v does not exist", titles)
 	}
 
@@ -108,7 +110,7 @@ func (cc *CryptoCompare) GetActualRates(ctx context.Context, titles []string, ex
 	var data CryptoData
 	err = json.Unmarshal(body, &data)
 	if err != nil {
-		log.Info("32")
+		log.Error("(GetActualRates) failed to parse resp.body")
 		return nil, errors.Wrap(err, "failed to parse response body, invalid JSON format")
 	}
 
@@ -128,6 +130,7 @@ func (cc *CryptoCompare) GetActualRates(ctx context.Context, titles []string, ex
 
 		coin, err := entities.NewCoin(coinTitle, price)
 		if err != nil {
+			log.Error("(GetActualRates) failed to create new coin:", zap.Any("newCoin", coin))
 			return nil, errors.Wrap(err, "failed to create new coin")
 		}
 
