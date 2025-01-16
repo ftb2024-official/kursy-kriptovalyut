@@ -25,8 +25,8 @@ type Config struct {
 func LoadCfg() *Config {
 	cfg := &Config{}
 
-	// viper.SetConfigFile("D:\\PROGRAMMING\\GO\\go-projects\\kursy-kriptovalyut\\config\\cfg.yaml")
-	viper.SetConfigFile("./cfg.yaml")
+	viper.SetConfigFile("D:\\PROGRAMMING\\GO\\go-projects\\kursy-kriptovalyut\\config\\cfg.yaml")
+	// viper.SetConfigFile("./cfg.yaml")
 
 	err := viper.ReadInConfig()
 	if err != nil {
